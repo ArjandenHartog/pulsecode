@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Folder operations
   selectFolder: () => ipcRenderer.invoke('select-folder'),
   openFolder: (folderPath) => ipcRenderer.invoke('open-folder', folderPath),
+  openFile: (filePath) => ipcRenderer.invoke('open-file', filePath),
   
   // Workspace management
   createWorkspace: (data) => ipcRenderer.invoke('create-workspace', data),
@@ -14,6 +15,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Command execution
   executeCommand: (data) => ipcRenderer.invoke('execute-command', data),
+  stopClaudeCode: (workspaceId) => ipcRenderer.invoke('stop-claude-code', workspaceId),
+  
+  // Git operations
+  getGitInfo: (workspacePath) => ipcRenderer.invoke('get-git-info', workspacePath),
+  getFileChanges: (workspacePath) => ipcRenderer.invoke('get-file-changes', workspacePath),
+  checkGitBash: () => ipcRenderer.invoke('check-git-bash'),
   
   // System info
   platform: process.platform,

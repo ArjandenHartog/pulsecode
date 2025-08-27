@@ -28,6 +28,7 @@ export interface FileChange {
 export interface ElectronAPI {
   selectFolder: () => Promise<string | null>;
   openFolder: (folderPath: string) => Promise<void>;
+  openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
   createWorkspace: (data: { folderPath: string; name: string }) => Promise<{
     success: boolean;
     workspace?: Workspace;
@@ -39,6 +40,22 @@ export interface ElectronAPI {
     success: boolean;
     output?: string;
     error?: string;
+  }>;
+  stopClaudeCode: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  getGitInfo: (workspacePath: string) => Promise<{
+    success: boolean;
+    branch?: string | null;
+    error?: string;
+  }>;
+  getFileChanges: (workspacePath: string) => Promise<{
+    success: boolean;
+    changes: FileChange[];
+    error?: string;
+  }>;
+  checkGitBash: () => Promise<{
+    available: boolean;
+    path?: string | null;
+    message: string;
   }>;
   platform: string;
   onWorkspaceUpdate: (callback: (event: any, data: any) => void) => () => void;

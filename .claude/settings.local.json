@@ -2,9 +2,28 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(npm run electron:dev:*)",
+      "Read(C:\\claude-code/**)",
+      "Read(C:\\claude-code/**)",
+      "Read(C:\\claude-code/**)",
+      "Bash(where claude)",
+      "Bash(where bash)",
+      "Read(C:\\claude-code/**)",
+      "Read(C:\\claude-code/**)",
+      "Read(C:\\claude-code/**)",
+      "Bash(set CLAUDE_CODE_GIT_BASH_PATH=C:Usersa.denhartogAppDataLocalProgramsGitusrbinbash.exe)",
+      "Bash(where git)",
+      "Bash(dir \"C:\\Users\\a.denhartog\\AppData\\Local\\Programs\\Git\\bin\"\")",
+      "WebSearch",
+      "Bash(taskkill:*)",
+      "Bash(pkill:*)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\Users\\a.denhartog\\AppData\\Local\\Programs\\Git\\bin",
+      "C:\\Users\\a.denhartog\\source\\repos\\Bever.TaskHost"
+    ]
   }
 }
