@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Workspace } from '@/lib/types';
+import { Workspace, AIProvider } from '@/lib/types';
 import { Sidebar } from './sidebar';
 import { MainContent } from './main-content';
 import { FileChanges } from './file-changes';
@@ -51,11 +51,11 @@ export function ConductorApp() {
     }
   };
 
-  const handleCreateWorkspace = async (folderPath: string, name: string) => {
+  const handleCreateWorkspace = async (folderPath: string, name: string, provider: AIProvider) => {
     if (!window.electronAPI) return;
     
     try {
-      const result = await window.electronAPI.createWorkspace({ folderPath, name });
+      const result = await window.electronAPI.createWorkspace({ folderPath, name, provider });
       if (result.success && result.workspace) {
         // Get Git info for the new workspace
         const gitInfo = await window.electronAPI.getGitInfo(folderPath);

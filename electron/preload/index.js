@@ -15,12 +15,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   
   // Command execution
   executeCommand: (data) => ipcRenderer.invoke('execute-command', data),
-  stopClaudeCode: (workspaceId) => ipcRenderer.invoke('stop-claude-code', workspaceId),
+  stopAIProcess: (workspaceId) => ipcRenderer.invoke('stop-ai-process', workspaceId),
   
   // Git operations
   getGitInfo: (workspacePath) => ipcRenderer.invoke('get-git-info', workspacePath),
   getFileChanges: (workspacePath) => ipcRenderer.invoke('get-file-changes', workspacePath),
-  checkGitBash: () => ipcRenderer.invoke('check-git-bash'),
+  checkToolAvailability: (tool) => ipcRenderer.invoke('check-tool-availability', tool),
   
   // System info
   platform: process.platform,

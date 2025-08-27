@@ -17,7 +17,9 @@
       "Bash(dir \"C:\\Users\\a.denhartog\\AppData\\Local\\Programs\\Git\\bin\"\")",
       "WebSearch",
       "Bash(taskkill:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm run dev:*)"
     ],
     "deny": [],
     "ask": [],

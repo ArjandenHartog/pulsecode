@@ -94,7 +94,7 @@ class PulseCodeApp {
     });
 
     // Handle workspace creation
-    ipcMain.handle('create-workspace', async (event, { folderPath, name }) => {
+    ipcMain.handle('create-workspace', async (event, { folderPath, name, provider }) => {
       try {
         const workspaceId = `workspace_${Date.now()}`;
         const workspace = {
@@ -103,7 +103,8 @@ class PulseCodeApp {
           path: folderPath,
           status: 'idle',
           terminal: null,
-          claudeProcess: null,
+          aiProcess: null,
+          provider: provider || 'claude',
           createdAt: new Date().toISOString()
         };
         
@@ -123,8 +124,8 @@ class PulseCodeApp {
     ipcMain.handle('remove-workspace', async (event, workspaceId) => {
       if (this.workspaces.has(workspaceId)) {
         const workspace = this.workspaces.get(workspaceId);
-        if (workspace.claudeProcess) {
-          workspace.claudeProcess.kill();
+        if (workspace.aiProcess) {
+          workspace.aiProcess.kill();
         }
         this.workspaces.delete(workspaceId);
         return { success: true };
@@ -156,34 +157,45 @@ class PulseCodeApp {
         }
 
         return new Promise((resolve) => {
-          const isClaudeCommand = command.includes('claude-code') || command.includes('claude');
-          const isClaudeInput = command.startsWith('claude-input:');
+          const isAICommand = command.includes('claude-code') || command.includes('claude') || command.includes('opencode');
+          const isAIInput = command.startsWith('ai-input:');
           
-          if (isClaudeInput) {
-            // Send input to existing Claude process
-            const input = command.replace('claude-input:', '') + '\n';
-            if (workspace.claudeProcess && workspace.claudeProcess.stdin) {
-              workspace.claudeProcess.stdin.write(input);
+          if (isAIInput) {
+            // Send input to existing AI process
+            const input = command.replace('ai-input:', '') + '\n';
+            if (workspace.aiProcess && workspace.aiProcess.stdin) {
+              workspace.aiProcess.stdin.write(input);
               resolve({ success: true, output: '' });
             } else {
-              resolve({ success: false, error: 'No active Claude process' });
+              resolve({ success: false, error: 'No active AI process' });
             }
-          } else if (isClaudeCommand) {
-            // Start Claude Code process
-            const claudeCommand = command.trim() === 'claude' ? 'claude' : 'claude-code';
-            console.log(`Starting Claude with command: ${claudeCommand} in ${workspace.path}`);
+          } else if (isAICommand) {
+            // Determine AI tool and command
+            let aiCommand;
+            let needsBash = false;
             
-            // Set up environment for Claude Code (needs Git Bash on Windows)
+            if (command.includes('opencode')) {
+              aiCommand = 'opencode';
+            } else {
+              aiCommand = command.trim() === 'claude' ? 'claude' : 'claude-code';
+              needsBash = true; // Claude Code needs Git Bash on Windows
+            }
+            
+            console.log(`Starting ${workspace.provider} with command: ${aiCommand} in ${workspace.path}`);
+            
+            // Set up environment (Claude Code needs Git Bash on Windows)
             let bashPath = null;
-            try {
-              const result = execSync('where bash', { encoding: 'utf8' });
-              const paths = result.trim().split('\n');
-              console.log('All bash paths found:', paths);
-              // Take the first Git-related bash path and clean it
-              bashPath = (paths.find(p => p.includes('Git')) || paths[0])?.replace(/\r/g, '').trim();
-              console.log('Selected bash path:', bashPath);
-            } catch (error) {
-              console.log('Could not find bash:', error.message);
+            if (needsBash) {
+              try {
+                const result = execSync('where bash', { encoding: 'utf8' });
+                const paths = result.trim().split('\n');
+                console.log('All bash paths found:', paths);
+                // Take the first Git-related bash path and clean it
+                bashPath = (paths.find(p => p.includes('Git')) || paths[0])?.replace(/\r/g, '').trim();
+                console.log('Selected bash path:', bashPath);
+              } catch (error) {
+                console.log('Could not find bash:', error.message);
+              }
             }
             
             const env = { 
@@ -200,8 +212,8 @@ class PulseCodeApp {
               PATH: env.PATH?.split(';').slice(0, 3).join(';') + '...'
             });
 
-            // Start Claude Code via cmd with proper environment and force TTY mode
-            const claudeProcess = spawn('cmd', ['/c', `${claudeCommand}`], {
+            // Start AI process with proper environment
+            const aiProcess = spawn('cmd', ['/c', `${aiCommand}`], {
               cwd: workspace.path,
               stdio: ['pipe', 'pipe', 'pipe'],
               env: {
@@ -215,17 +227,17 @@ class PulseCodeApp {
               detached: false
             });
 
-            workspace.claudeProcess = claudeProcess;
+            workspace.aiProcess = aiProcess;
             workspace.status = 'running';
 
             let output = '';
             let hasReceivedOutput = false;
 
-            claudeProcess.stdout.on('data', (data) => {
+            aiProcess.stdout.on('data', (data) => {
               const text = data.toString();
               output += text;
               hasReceivedOutput = true;
-              console.log(`Claude stdout: ${text}`);
+              console.log(`${workspace.provider} stdout: ${text}`);
               
               // Send real-time output to renderer - clean up ANSI codes for display
               const cleanText = text.replace(/\x1b\[[0-9;]*m/g, ''); // Remove ANSI escape codes
@@ -235,11 +247,11 @@ class PulseCodeApp {
               });
             });
 
-            claudeProcess.stderr.on('data', (data) => {
+            aiProcess.stderr.on('data', (data) => {
               const text = data.toString();
               output += text;
               hasReceivedOutput = true;
-              console.log(`Claude stderr: ${text}`);
+              console.log(`${workspace.provider} stderr: ${text}`);
               
               this.mainWindow?.webContents.send('terminal-output', {
                 workspaceId,
@@ -248,34 +260,37 @@ class PulseCodeApp {
               });
             });
 
-            claudeProcess.on('spawn', () => {
-              console.log(`Claude process spawned successfully with PID: ${claudeProcess.pid}`);
+            aiProcess.on('spawn', () => {
+              console.log(`${workspace.provider} process spawned successfully with PID: ${aiProcess.pid}`);
+              const toolName = workspace.provider === 'claude' ? 'Claude Code' : 'OpenCode';
               this.mainWindow?.webContents.send('terminal-output', {
                 workspaceId,
-                output: `Claude Code launched (PID: ${claudeProcess.pid})\n`
+                output: `${toolName} launched (PID: ${aiProcess.pid})\n`
               });
             });
 
-            claudeProcess.on('error', (error) => {
-              console.error(`Claude process error:`, error);
+            aiProcess.on('error', (error) => {
+              console.error(`${workspace.provider} process error:`, error);
               workspace.status = 'error';
-              workspace.claudeProcess = null;
+              workspace.aiProcess = null;
+              const toolName = workspace.provider === 'claude' ? 'Claude' : 'OpenCode';
               this.mainWindow?.webContents.send('terminal-output', {
                 workspaceId,
-                output: `Error launching Claude: ${error.message}\n`,
+                output: `Error launching ${toolName}: ${error.message}\n`,
                 isError: true
               });
               this.mainWindow?.webContents.send('workspace-update', workspace);
             });
 
-            claudeProcess.on('close', (code, signal) => {
-              console.log(`Claude process closed with code: ${code}, signal: ${signal}`);
+            aiProcess.on('close', (code, signal) => {
+              console.log(`${workspace.provider} process closed with code: ${code}, signal: ${signal}`);
               workspace.status = code === 0 ? 'completed' : 'error';
-              workspace.claudeProcess = null;
+              workspace.aiProcess = null;
               
+              const toolName = workspace.provider === 'claude' ? 'Claude Code' : 'OpenCode';
               const statusMessage = code === 0 
-                ? 'Claude Code session ended normally' 
-                : `Claude Code exited with code: ${code}`;
+                ? `${toolName} session ended normally` 
+                : `${toolName} exited with code: ${code}`;
               
               this.mainWindow?.webContents.send('terminal-output', {
                 workspaceId,
@@ -288,16 +303,18 @@ class PulseCodeApp {
             // Give some initial feedback
             setTimeout(() => {
               if (!hasReceivedOutput) {
+                const toolName = workspace.provider === 'claude' ? 'Claude Code' : 'OpenCode';
                 this.mainWindow?.webContents.send('terminal-output', {
                   workspaceId,
-                  output: `Waiting for Claude Code to initialize...\n`
+                  output: `Waiting for ${toolName} to initialize...\n`
                 });
               }
             }, 2000);
 
+            const toolName = workspace.provider === 'claude' ? 'Claude Code' : 'OpenCode';
             resolve({ 
               success: true, 
-              output: `Launching Claude Code in ${workspace.path}...` 
+              output: `Launching ${toolName} in ${workspace.path}...` 
             });
           } else {
             // Execute regular command
@@ -331,16 +348,16 @@ class PulseCodeApp {
       }
     });
 
-    // Stop Claude Code process
-    ipcMain.handle('stop-claude-code', async (event, workspaceId) => {
+    // Stop AI process
+    ipcMain.handle('stop-ai-process', async (event, workspaceId) => {
       try {
         const workspace = this.workspaces.get(workspaceId);
-        if (!workspace || !workspace.claudeProcess) {
-          return { success: false, error: 'No Claude Code process running' };
+        if (!workspace || !workspace.aiProcess) {
+          return { success: false, error: 'No AI process running' };
         }
 
-        workspace.claudeProcess.kill();
-        workspace.claudeProcess = null;
+        workspace.aiProcess.kill();
+        workspace.aiProcess = null;
         workspace.status = 'idle';
         
         return { success: true };
@@ -375,16 +392,52 @@ class PulseCodeApp {
       }
     });
 
-    // Check Git Bash availability
-    ipcMain.handle('check-git-bash', async () => {
-      const gitBashPath = findGitBash();
-      return {
-        available: !!gitBashPath,
-        path: gitBashPath,
-        message: gitBashPath 
-          ? 'Git Bash is available' 
-          : 'Git Bash not found. Please install Git for Windows from https://git-scm.com/downloads/win'
-      };
+    // Check tool availability
+    ipcMain.handle('check-tool-availability', async (event, tool) => {
+      try {
+        if (tool === 'claude') {
+          // Check for Claude Code
+          try {
+            execSync('claude --version', { encoding: 'utf8', stdio: 'pipe' });
+            return {
+              available: true,
+              message: 'Claude Code is installed and ready'
+            };
+          } catch (error) {
+            const gitBashPath = findGitBash();
+            return {
+              available: false,
+              message: gitBashPath 
+                ? 'Claude Code not found. Install from https://claude.ai/code'
+                : 'Git Bash and Claude Code required. Install Git from https://git-scm.com/downloads/win and Claude Code from https://claude.ai/code'
+            };
+          }
+        } else if (tool === 'opencode') {
+          // Check for OpenCode
+          try {
+            execSync('opencode --version', { encoding: 'utf8', stdio: 'pipe' });
+            return {
+              available: true,
+              message: 'OpenCode is installed and ready'
+            };
+          } catch (error) {
+            return {
+              available: false,
+              message: 'OpenCode not found. Install with: npm i -g opencode-ai@latest'
+            };
+          }
+        } else {
+          return {
+            available: false,
+            message: 'Unknown tool'
+          };
+        }
+      } catch (error) {
+        return {
+          available: false,
+          message: `Error checking ${tool}: ${error.message}`
+        };
+      }
     });
 
     // Get file changes (git status)

@@ -1,10 +1,13 @@
+export type AIProvider = 'claude' | 'opencode';
+
 export interface Workspace {
   id: string;
   name: string;
   path: string;
   status: 'idle' | 'running' | 'error' | 'completed';
   terminal?: TerminalData;
-  claudeProcess?: any;
+  aiProcess?: any;
+  provider: AIProvider;
   createdAt: string;
   lastActivity?: string;
   gitBranch?: string;
@@ -29,7 +32,7 @@ export interface ElectronAPI {
   selectFolder: () => Promise<string | null>;
   openFolder: (folderPath: string) => Promise<void>;
   openFile: (filePath: string) => Promise<{ success: boolean; error?: string }>;
-  createWorkspace: (data: { folderPath: string; name: string }) => Promise<{
+  createWorkspace: (data: { folderPath: string; name: string; provider: AIProvider }) => Promise<{
     success: boolean;
     workspace?: Workspace;
     error?: string;
@@ -41,7 +44,7 @@ export interface ElectronAPI {
     output?: string;
     error?: string;
   }>;
-  stopClaudeCode: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
+  stopAIProcess: (workspaceId: string) => Promise<{ success: boolean; error?: string }>;
   getGitInfo: (workspacePath: string) => Promise<{
     success: boolean;
     branch?: string | null;
@@ -52,7 +55,7 @@ export interface ElectronAPI {
     changes: FileChange[];
     error?: string;
   }>;
-  checkGitBash: () => Promise<{
+  checkToolAvailability: (tool: AIProvider) => Promise<{
     available: boolean;
     path?: string | null;
     message: string;

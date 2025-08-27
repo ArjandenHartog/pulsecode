@@ -12,7 +12,9 @@ import {
   ExternalLink,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Bot,
+  Code
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -125,19 +127,29 @@ export function Sidebar({
                 </div>
               </div>
 
-              {/* Status Badge */}
-              <div className="flex items-center justify-between">
-                <Badge 
-                  variant="outline" 
-                  className={cn("text-xs capitalize", getStatusColor(workspace.status))}
-                >
-                  {workspace.status}
-                </Badge>
+              {/* Status and Provider */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1">
+                  <Badge 
+                    variant="outline" 
+                    className={cn("text-xs capitalize", getStatusColor(workspace.status))}
+                  >
+                    {workspace.status}
+                  </Badge>
+                  <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-xs bg-muted/50">
+                    {(workspace.provider || 'claude') === 'claude' ? (
+                      <Bot className="h-3 w-3" />
+                    ) : (
+                      <Code className="h-3 w-3" />
+                    )}
+                    <span className="capitalize">{workspace.provider || 'claude'}</span>
+                  </div>
+                </div>
                 
                 {workspace.gitBranch && (
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <GitBranch className="h-3 w-3" />
-                    <span className="truncate max-w-20">{workspace.gitBranch}</span>
+                    <span className="truncate max-w-16">{workspace.gitBranch}</span>
                   </div>
                 )}
               </div>

@@ -34,7 +34,7 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
   const [command, setCommand] = useState('');
   const [isExecuting, setIsExecuting] = useState(false);
   const [terminalOutput, setTerminalOutput] = useState<string[]>([]);
-  const [isClaudeRunning, setIsClaudeRunning] = useState(false);
+  const [isAIRunning, setIsAIRunning] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -54,13 +54,13 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
         `Workspace: ${selectedWorkspace.name}`,
         `Path: ${selectedWorkspace.path}`,
         ``,
-        `Type 'claude' to start Claude Code or any other command to execute.`,
+        `Type 'claude' to start Claude Code, 'opencode' for OpenCode, or any other command to execute.`,
         ``,
       ]);
-      setIsClaudeRunning(selectedWorkspace.status === 'running');
+      setIsAIRunning(selectedWorkspace.status === 'running');
     } else {
       setTerminalOutput([]);
-      setIsClaudeRunning(false);
+      setIsAIRunning(false);
     }
   }, [selectedWorkspace]);
 
@@ -85,28 +85,30 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
     setIsExecuting(true);
 
     try {
-      // Check if this is a Claude Code command
-      if (cmd === 'claude' || cmd === 'claude-code' || cmd.startsWith('claude ')) {
-        setIsClaudeRunning(true);
+      // Check if this is an AI command
+      if (cmd === 'claude' || cmd === 'claude-code' || cmd.startsWith('claude ') || cmd === 'opencode' || cmd.startsWith('opencode ')) {
+        setIsAIRunning(true);
+        const toolName = cmd.includes('opencode') ? 'OpenCode' : 'Claude Code';
         setTerminalOutput(prev => [
           ...prev,
-          'Starting Claude Code...',
-          'Initializing Claude environment...',
+          `Starting ${toolName}...`,
+          `Initializing ${toolName} environment...`,
           ''
         ]);
       }
 
-      if (isClaudeRunning) {
-        // If Claude is running, send input directly to Claude process
+      if (isAIRunning) {
+        // If AI is running, send input directly to AI process
         const result = await window.electronAPI?.executeCommand({ 
           workspaceId: selectedWorkspace.id, 
-          command: `claude-input:${cmd}` 
+          command: `ai-input:${cmd}` 
         });
         
         if (!result?.success) {
+          const toolName = (selectedWorkspace?.provider || 'claude') === 'claude' ? 'Claude' : 'OpenCode';
           setTerminalOutput(prev => [
             ...prev, 
-            `Error sending to Claude: ${result?.error || 'Communication failed'}`,
+            `Error sending to ${toolName}: ${result?.error || 'Communication failed'}`,
             ''
           ]);
         }
@@ -139,22 +141,23 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
     }
   };
 
-  const handleStopClaude = async () => {
+  const handleStopAI = async () => {
     if (!selectedWorkspace || !window.electronAPI) return;
 
     try {
-      const result = await window.electronAPI.stopClaudeCode(selectedWorkspace.id);
+      const result = await window.electronAPI.stopAIProcess(selectedWorkspace.id);
       if (result.success) {
-        setIsClaudeRunning(false);
+        setIsAIRunning(false);
+        const toolName = (selectedWorkspace.provider || 'claude') === 'claude' ? 'Claude Code' : 'OpenCode';
         setTerminalOutput(prev => [
           ...prev,
-          'Claude Code session terminated',
+          `${toolName} session terminated`,
           'Ready for new commands...',
           ''
         ]);
       }
     } catch (error) {
-      console.error('Failed to stop Claude Code:', error);
+      console.error('Failed to stop AI process:', error);
     }
   };
 
@@ -200,10 +203,10 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
           <div>
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-semibold">{selectedWorkspace.name}</h2>
-              {isClaudeRunning && (
+              {isAIRunning && (
                 <Badge className="bg-green-100 text-green-800 border-green-200">
                   <div className="w-2 h-2 bg-green-600 rounded-full animate-pulse mr-1" />
-                  Claude Running
+                  {(selectedWorkspace.provider || 'claude') === 'claude' ? 'Claude' : 'OpenCode'} Running
                 </Badge>
               )}
               <Badge 
@@ -226,23 +229,24 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
           </div>
           
           <div className="flex items-center gap-2">
-            {isClaudeRunning ? (
+            {isAIRunning ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleStopClaude}
+                onClick={handleStopAI}
                 className="text-red-600 hover:text-red-700 hover:bg-red-50"
               >
                 <Square className="h-4 w-4 mr-2" />
-                Stop Claude
+                Stop {(selectedWorkspace.provider || 'claude') === 'claude' ? 'Claude' : 'OpenCode'}
               </Button>
             ) : (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setCommand('claude');
-                  handleSendCommand();
+                  const command = (selectedWorkspace.provider || 'claude') === 'claude' ? 'claude' : 'opencode';
+                  setCommand(command);
+                  setTimeout(handleSendCommand, 0);
                 }}
                 disabled={isExecuting}
               >
@@ -251,7 +255,7 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
                 ) : (
                   <Play className="h-4 w-4 mr-2" />
                 )}
-                Start Claude Code
+                Start {(selectedWorkspace.provider || 'claude') === 'claude' ? 'Claude Code' : 'OpenCode'}
               </Button>
             )}
             
@@ -314,7 +318,7 @@ export function MainContent({ selectedWorkspace, onExecuteCommand }: MainContent
                   handleSendCommand();
                 }
               }}
-              placeholder={isClaudeRunning ? "Chat with Claude..." : "Type a command..."}
+              placeholder={isAIRunning ? `Chat with ${(selectedWorkspace.provider || 'claude') === 'claude' ? 'Claude' : 'OpenCode'}...` : "Type a command..."}
               className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 font-mono text-sm"
               disabled={isExecuting}
               autoFocus
