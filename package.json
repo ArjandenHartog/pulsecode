@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "electron": "cross-env NODE_ENV=development electron .",
-    "electron:dev": "concurrently \"npm run dev\" \"wait-on tcp:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron:dev": "concurrently \"cross-env PORT=3005 npm run dev\" \"wait-on tcp:3005 && cross-env NODE_ENV=development electron .\"",
     "electron:build": "npm run build && cross-env NODE_ENV=production electron .",
     "dist": "npm run build && electron-builder"
   },

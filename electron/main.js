@@ -64,7 +64,7 @@ class PulseCodeApp {
     });
 
     const startUrl = isDev 
-      ? 'http://localhost:3000' 
+      ? 'http://localhost:3009' 
       : `file://${path.join(__dirname, '../out/index.html')}`;
 
     this.mainWindow.loadURL(startUrl);

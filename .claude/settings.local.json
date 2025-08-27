@@ -19,7 +19,9 @@
       "Bash(taskkill:*)",
       "Bash(pkill:*)",
       "WebFetch(domain:github.com)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "Bash(cmd /c:*)",
+      "Bash(npm run electron:*)"
     ],
     "deny": [],
     "ask": [],
